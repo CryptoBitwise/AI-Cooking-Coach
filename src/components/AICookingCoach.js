@@ -2,6 +2,8 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Camera, Upload, Mic, MicOff, ChefHat, Sparkles, Clock, CheckCircle, Volume2, Star, Heart, ThumbsUp, Award, Share2, AlertCircle, Zap } from 'lucide-react';
 
 const AICookingCoach = () => {
+    console.log('AICookingCoach component rendering...');
+    
     const [currentStep, setCurrentStep] = useState('ingredients'); // ingredients, cooking, finished
     const [isProcessing, setIsProcessing] = useState(false);
     const [recipe, setRecipe] = useState(null);
@@ -158,23 +160,9 @@ const AICookingCoach = () => {
         }`;
             }
 
-            // Use Netlify function to call Google AI Studio API (keeps API key secure)
-            const response = await fetch('/.netlify/functions/analyze-image', {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    imageData: imageData,
-                    currentStep: currentStep
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error(`API error: ${response.status}`);
-            }
-
-            const analysisData = await response.json();
+            // Temporarily use mock data for testing
+            console.log('Using mock data for testing...');
+            const analysisData = await mockAIAnalysis(currentStep, imageData);
 
             setAnalysisResult(analysisData);
 
@@ -756,31 +744,6 @@ const AICookingCoach = () => {
                 >
                     📊 {showNutrition ? 'Hide' : 'Show'} Detailed Nutrition
                 </button>
-            </div>
-        </div>
-    );
-
-    return (
-        <div className="min-h-screen gradient-bg cooking-pattern p-4">
-            {showTutorial && renderTutorial()}
-
-            <div className="max-w-2xl mx-auto">
-                <div className="text-center mb-8">
-                    <h1 className="text-4xl font-bold text-gray-800 mb-2 text-shadow">
-                        🍳 AI Cooking Coach
-                    </h1>
-                    <p className="text-gray-600">Multimodal cooking assistant powered by AI</p>
-                </div>
-
-                <div className="card">
-                    {currentStep === 'ingredients' && renderIngredientsStep()}
-                    {currentStep === 'cooking' && renderCookingStep()}
-                    {currentStep === 'finished' && renderFinishedStep()}
-                </div>
-
-                <div className="text-center mt-6 text-sm text-gray-500">
-                    Built for Google AI Studio Multimodal Challenge
-                </div>
             </div>
         </div>
     );
