@@ -22,6 +22,53 @@ const AICookingCoach = () => {
     const recognitionRef = useRef(null);
     const [isCameraActive, setIsCameraActive] = useState(false);
 
+    // Camera functionality
+    const startCamera = useCallback(async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment' } // Use back camera on mobile
+            });
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                setIsCameraActive(true);
+            }
+        } catch (error) {
+            console.error('Error accessing camera:', error);
+            alert('Camera access denied. Please use file upload instead.');
+        }
+    }, []);
+
+    const stopCamera = useCallback(() => {
+        if (videoRef.current && videoRef.current.srcObject) {
+            const tracks = videoRef.current.srcObject.getTracks();
+            tracks.forEach(track => track.stop());
+            setIsCameraActive(false);
+        }
+    }, []);
+
+    const capturePhoto = useCallback(() => {
+        if (videoRef.current && canvasRef.current) {
+            const canvas = canvasRef.current;
+            const video = videoRef.current;
+            const context = canvas.getContext('2d');
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0);
+
+            canvas.toBlob((blob) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    setCapturedImage(e.target.result);
+                    analyzeImage(e.target.result);
+                };
+                reader.readAsDataURL(blob);
+            }, 'image/jpeg', 0.8);
+
+            stopCamera();
+        }
+    }, [analyzeImage, stopCamera]);
+
     // Voice functionality
     const handleVoiceCommand = useCallback((transcript) => {
         const command = transcript.toLowerCase();
@@ -196,53 +243,6 @@ const AICookingCoach = () => {
             };
         }
     }, [handleVoiceCommand]);
-
-    // Camera functionality
-    const startCamera = useCallback(async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment' } // Use back camera on mobile
-            });
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-                setIsCameraActive(true);
-            }
-        } catch (error) {
-            console.error('Error accessing camera:', error);
-            alert('Camera access denied. Please use file upload instead.');
-        }
-    }, []);
-
-    const stopCamera = useCallback(() => {
-        if (videoRef.current && videoRef.current.srcObject) {
-            const tracks = videoRef.current.srcObject.getTracks();
-            tracks.forEach(track => track.stop());
-            setIsCameraActive(false);
-        }
-    }, []);
-
-    const capturePhoto = useCallback(() => {
-        if (videoRef.current && canvasRef.current) {
-            const canvas = canvasRef.current;
-            const video = videoRef.current;
-            const context = canvas.getContext('2d');
-
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            context.drawImage(video, 0, 0);
-
-            canvas.toBlob((blob) => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    setCapturedImage(e.target.result);
-                    analyzeImage(e.target.result);
-                };
-                reader.readAsDataURL(blob);
-            }, 'image/jpeg', 0.8);
-
-            stopCamera();
-        }
-    }, [analyzeImage, stopCamera]);
 
     // File upload handler
     const handleFileUpload = (event) => {
