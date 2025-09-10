@@ -7,6 +7,28 @@
   CI = "false"
   GENERATE_SOURCEMAP = "false"
 
+# Don't redirect static assets - let them be served directly
+[[redirects]]
+  from = "/*.js"
+  to = "/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/*.css"
+  to = "/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/*.map"
+  to = "/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/static/*"
+  to = "/static/:splat"
+  status = 200
+
+# Redirect everything else to index.html for SPA routing
 [[redirects]]
   from = "/*"
   to = "/index.html"
