@@ -747,6 +747,31 @@ const AICookingCoach = () => {
             </div>
         </div>
     );
+
+    return (
+        <div className="min-h-screen gradient-bg cooking-pattern p-4">
+            {showTutorial && renderTutorial()}
+
+            <div className="max-w-2xl mx-auto">
+                <div className="text-center mb-8">
+                    <h1 className="text-4xl font-bold text-gray-800 mb-2 text-shadow">
+                        🍳 AI Cooking Coach
+                    </h1>
+                    <p className="text-gray-600">Multimodal cooking assistant powered by AI</p>
+                </div>
+
+                <div className="card">
+                    {currentStep === 'ingredients' && renderIngredientsStep()}
+                    {currentStep === 'cooking' && renderCookingStep()}
+                    {currentStep === 'finished' && renderFinishedStep()}
+                </div>
+
+                <div className="text-center mt-6 text-sm text-gray-500">
+                    Built for Google AI Studio Multimodal Challenge
+                </div>
+            </div>
+        </div>
+    );
 };
 
 export default AICookingCoach;
