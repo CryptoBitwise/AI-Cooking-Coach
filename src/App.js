@@ -3,6 +3,7 @@ import AICookingCoach from './components/AICookingCoach';
 import DemoPage from './components/DemoPage';
 
 function App() {
+    console.log('App component rendering...');
     const [showDemo, setShowDemo] = useState(false);
 
     return (
