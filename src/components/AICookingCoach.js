@@ -22,85 +22,28 @@ const AICookingCoach = () => {
     const recognitionRef = useRef(null);
     const [isCameraActive, setIsCameraActive] = useState(false);
 
-    // Initialize speech recognition
-    useEffect(() => {
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognitionRef.current = new SpeechRecognition();
-            recognitionRef.current.continuous = false;
-            recognitionRef.current.interimResults = false;
-            recognitionRef.current.lang = 'en-US';
+    // Voice functionality
+    const handleVoiceCommand = useCallback((transcript) => {
+        const command = transcript.toLowerCase();
 
-            recognitionRef.current.onresult = (event) => {
-                const transcript = event.results[0][0].transcript;
-                handleVoiceCommand(transcript);
-            };
-
-            recognitionRef.current.onend = () => {
-                setIsListening(false);
-            };
-        }
-    }, [handleVoiceCommand]);
-
-    // Camera functionality
-    const startCamera = useCallback(async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment' } // Use back camera on mobile
-            });
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-                setIsCameraActive(true);
+        if (command.includes('next step') || command.includes('continue')) {
+            if (currentStep === 'cooking' && recipe) {
+                setCurrentStepIndex(prev => Math.min(prev + 1, recipe.steps.length - 1));
             }
-        } catch (error) {
-            console.error('Error accessing camera:', error);
-            alert('Camera access denied. Please use file upload instead.');
+        } else if (command.includes('previous step') || command.includes('go back')) {
+            if (currentStep === 'cooking' && recipe) {
+                setCurrentStepIndex(prev => Math.max(prev - 1, 0));
+            }
+        } else if (command.includes('start cooking')) {
+            setCurrentStep('cooking');
+        } else if (command.includes('take photo') || command.includes('capture')) {
+            if (isCameraActive) {
+                capturePhoto();
+            } else {
+                startCamera();
+            }
         }
-    }, []);
-
-    const stopCamera = useCallback(() => {
-        if (videoRef.current && videoRef.current.srcObject) {
-            const tracks = videoRef.current.srcObject.getTracks();
-            tracks.forEach(track => track.stop());
-            setIsCameraActive(false);
-        }
-    }, []);
-
-    const capturePhoto = useCallback(() => {
-        if (videoRef.current && canvasRef.current) {
-            const canvas = canvasRef.current;
-            const video = videoRef.current;
-            const context = canvas.getContext('2d');
-
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            context.drawImage(video, 0, 0);
-
-            canvas.toBlob((blob) => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    setCapturedImage(e.target.result);
-                    analyzeImage(e.target.result);
-                };
-                reader.readAsDataURL(blob);
-            }, 'image/jpeg', 0.8);
-
-            stopCamera();
-        }
-    }, [analyzeImage, stopCamera]);
-
-    // File upload handler
-    const handleFileUpload = (event) => {
-        const file = event.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                setCapturedImage(e.target.result);
-                analyzeImage(e.target.result);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
+    }, [currentStep, recipe, isCameraActive, capturePhoto, startCamera]);
 
     // Enhanced AI Analysis using Google AI Studio with Gemini 2.5 Pro/Flash
     const analyzeImage = useCallback(async (imageData) => {
@@ -234,6 +177,86 @@ const AICookingCoach = () => {
         setIsProcessing(false);
     }, [currentStep]);
 
+    // Initialize speech recognition
+    useEffect(() => {
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognitionRef.current = new SpeechRecognition();
+            recognitionRef.current.continuous = false;
+            recognitionRef.current.interimResults = false;
+            recognitionRef.current.lang = 'en-US';
+
+            recognitionRef.current.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                handleVoiceCommand(transcript);
+            };
+
+            recognitionRef.current.onend = () => {
+                setIsListening(false);
+            };
+        }
+    }, [handleVoiceCommand]);
+
+    // Camera functionality
+    const startCamera = useCallback(async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment' } // Use back camera on mobile
+            });
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                setIsCameraActive(true);
+            }
+        } catch (error) {
+            console.error('Error accessing camera:', error);
+            alert('Camera access denied. Please use file upload instead.');
+        }
+    }, []);
+
+    const stopCamera = useCallback(() => {
+        if (videoRef.current && videoRef.current.srcObject) {
+            const tracks = videoRef.current.srcObject.getTracks();
+            tracks.forEach(track => track.stop());
+            setIsCameraActive(false);
+        }
+    }, []);
+
+    const capturePhoto = useCallback(() => {
+        if (videoRef.current && canvasRef.current) {
+            const canvas = canvasRef.current;
+            const video = videoRef.current;
+            const context = canvas.getContext('2d');
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0);
+
+            canvas.toBlob((blob) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    setCapturedImage(e.target.result);
+                    analyzeImage(e.target.result);
+                };
+                reader.readAsDataURL(blob);
+            }, 'image/jpeg', 0.8);
+
+            stopCamera();
+        }
+    }, [analyzeImage, stopCamera]);
+
+    // File upload handler
+    const handleFileUpload = (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                setCapturedImage(e.target.result);
+                analyzeImage(e.target.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     // Mock AI Analysis for demo
     const mockAIAnalysis = async (step, imageData) => {
         // Simulate API delay
@@ -293,28 +316,6 @@ const AICookingCoach = () => {
             }
         }
     };
-
-    const handleVoiceCommand = useCallback((transcript) => {
-        const command = transcript.toLowerCase();
-
-        if (command.includes('next step') || command.includes('continue')) {
-            if (currentStep === 'cooking' && recipe) {
-                setCurrentStepIndex(prev => Math.min(prev + 1, recipe.steps.length - 1));
-            }
-        } else if (command.includes('previous step') || command.includes('go back')) {
-            if (currentStep === 'cooking' && recipe) {
-                setCurrentStepIndex(prev => Math.max(prev - 1, 0));
-            }
-        } else if (command.includes('start cooking')) {
-            setCurrentStep('cooking');
-        } else if (command.includes('take photo') || command.includes('capture')) {
-            if (isCameraActive) {
-                capturePhoto();
-            } else {
-                startCamera();
-            }
-        }
-    }, [currentStep, recipe, isCameraActive, capturePhoto, startCamera]);
 
     // Audio functionality
     const addToAudioQueue = (text) => {
