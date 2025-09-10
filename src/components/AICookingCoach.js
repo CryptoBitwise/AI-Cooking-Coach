@@ -158,46 +158,23 @@ const AICookingCoach = () => {
         }`;
             }
 
-            // Use Google AI Studio with Gemini 2.5 Pro/Flash
-            const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent", {
+            // Use Netlify function to call Google AI Studio API (keeps API key secure)
+            const response = await fetch('/.netlify/functions/analyze-image', {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json",
-                    "x-goog-api-key": process.env.REACT_APP_GOOGLE_AI_API_KEY
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                    contents: [{
-                        parts: [
-                            {
-                                text: prompt
-                            },
-                            {
-                                inline_data: {
-                                    mime_type: "image/jpeg",
-                                    data: base64Data
-                                }
-                            }
-                        ]
-                    }],
-                    generationConfig: {
-                        temperature: 0.7,
-                        topK: 40,
-                        topP: 0.95,
-                        maxOutputTokens: 1024,
-                    }
+                    imageData: imageData,
+                    currentStep: currentStep
                 })
             });
 
             if (!response.ok) {
-                throw new Error(`Google AI API error: ${response.status}`);
+                throw new Error(`API error: ${response.status}`);
             }
 
-            const data = await response.json();
-            let responseText = data.candidates[0].content.parts[0].text;
-
-            // Clean up response and parse JSON
-            responseText = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-            const analysisData = JSON.parse(responseText);
+            const analysisData = await response.json();
 
             setAnalysisResult(analysisData);
 
