@@ -11,13 +11,40 @@ const SimpleCoach = () => {
     const [isCameraActive, setIsCameraActive] = useState(false);
     const [error, setError] = useState(null);
 
-    // Real AI analysis function
+    // Real AI analysis function (tries Netlify Function first, then falls back to direct API)
     const analyzeImageWithAI = async (imageData) => {
         try {
             setError(null);
             setIsProcessing(true);
 
-            const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent', {
+            // Prefer Netlify Function if available (production), fallback to direct model API (local dev)
+            let data;
+            try {
+                const netlifyResp = await fetch('/.netlify/functions/analyze-image', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ imageData, currentStep: 'ingredients' })
+                });
+                if (!netlifyResp.ok) throw new Error(`Function ${netlifyResp.status}`);
+                data = await netlifyResp.json();
+                // Netlify function returns the parsed analysis payload directly
+                setRecipe({
+                    name: data.recipe?.name || 'AI Recipe',
+                    description: data.recipe?.description,
+                    ingredients: data.ingredients || data.recipe?.ingredients || [],
+                    steps: data.recipe?.steps || [],
+                    cookingTime: data.recipe?.cookingTime || '—',
+                    difficulty: data.recipe?.difficulty || '—',
+                    servings: data.recipe?.servings || '—',
+                    tips: data.tips || data.recipe?.tips || []
+                });
+                setIsProcessing(false);
+                return;
+            } catch (fnErr) {
+                // Fall through to direct API
+            }
+
+            const directResp = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -43,7 +70,7 @@ const SimpleCoach = () => {
                         }, {
                             inline_data: {
                                 mime_type: "image/jpeg",
-                                data: imageData.split(',')[1] // Remove data:image/jpeg;base64, prefix
+                                data: imageData.split(',')[1]
                             }
                         }]
                     }],
@@ -56,11 +83,11 @@ const SimpleCoach = () => {
                 })
             });
 
-            if (!response.ok) {
-                throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+            if (!directResp.ok) {
+                throw new Error(`API request failed: ${directResp.status} ${directResp.statusText}`);
             }
 
-            const data = await response.json();
+            data = await directResp.json();
 
             if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
                 throw new Error('Invalid response from AI API');
@@ -116,16 +143,27 @@ const SimpleCoach = () => {
 
     const startCamera = async () => {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment' }
-            });
+            // iOS Safari reliability tweaks: prefer ideal constraint, ensure user gesture triggers
+            const constraints = {
+                audio: false,
+                video: {
+                    facingMode: { ideal: 'environment' },
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            };
+            const stream = await (navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+                ? navigator.mediaDevices.getUserMedia(constraints)
+                : Promise.reject(new Error('Camera not supported'));
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
+                videoRef.current.setAttribute('playsinline', 'true');
+                videoRef.current.muted = true;
                 setIsCameraActive(true);
             }
         } catch (error) {
             console.error('Error accessing camera:', error);
-            alert('Camera access denied. Please use file upload instead.');
+            alert('Unable to start camera. Try Upload Photo instead.');
         }
     };
 
