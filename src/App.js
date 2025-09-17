@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import AICookingCoach from './components/AICookingCoach';
+import SimpleCoach from './components/SimpleCoach';
 import DemoPage from './components/DemoPage';
 
 function App() {
@@ -20,7 +20,7 @@ function App() {
                             {showDemo ? '🍳 Start Cooking' : '📱 View Demo'}
                         </button>
                     </div>
-                    <AICookingCoach />
+                    <SimpleCoach />
                 </div>
             )}
         </div>
