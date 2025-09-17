@@ -11,115 +11,37 @@ const SimpleCoach = () => {
     const [isCameraActive, setIsCameraActive] = useState(false);
     const [error, setError] = useState(null);
 
-    // Real AI analysis function (tries Netlify Function first, then falls back to direct API)
+    // Real AI analysis function using Netlify Function
     const analyzeImageWithAI = async (imageData) => {
         try {
             setError(null);
             setIsProcessing(true);
 
-            // Prefer Netlify Function if available (production), fallback to direct model API (local dev)
-            let data;
-            try {
-                const netlifyResp = await fetch('/.netlify/functions/analyze-image', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ imageData, currentStep: 'ingredients' })
-                });
-                if (!netlifyResp.ok) throw new Error(`Function ${netlifyResp.status}`);
-                data = await netlifyResp.json();
-                // Netlify function returns the parsed analysis payload directly
-                setRecipe({
-                    name: data.recipe?.name || 'AI Recipe',
-                    description: data.recipe?.description,
-                    ingredients: data.ingredients || data.recipe?.ingredients || [],
-                    steps: data.recipe?.steps || [],
-                    cookingTime: data.recipe?.cookingTime || '—',
-                    difficulty: data.recipe?.difficulty || '—',
-                    servings: data.recipe?.servings || '—',
-                    tips: data.tips || data.recipe?.tips || []
-                });
-                setIsProcessing(false);
-                return;
-            } catch (fnErr) {
-                // Fall through to direct API
-            }
-
-            const directResp = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent', {
+            const netlifyResp = await fetch('/.netlify/functions/analyze-image', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-goog-api-key': process.env.REACT_APP_GOOGLE_AI_API_KEY
-                },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [{
-                            text: `Analyze this image of ingredients and provide a detailed cooking recipe. 
-                            Please respond with a JSON object containing:
-                            {
-                                "name": "Recipe name",
-                                "description": "Brief description",
-                                "ingredients": ["ingredient1", "ingredient2", ...],
-                                "steps": ["step1", "step2", ...],
-                                "cookingTime": "X minutes",
-                                "difficulty": "Easy/Medium/Hard",
-                                "servings": "X servings",
-                                "tips": ["tip1", "tip2", ...]
-                            }
-                            
-                            Focus on what you can actually see in the image and suggest practical cooking steps.`
-                        }, {
-                            inline_data: {
-                                mime_type: "image/jpeg",
-                                data: imageData.split(',')[1]
-                            }
-                        }]
-                    }],
-                    generationConfig: {
-                        temperature: 0.7,
-                        topK: 40,
-                        topP: 0.95,
-                        maxOutputTokens: 1024,
-                    }
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ imageData, currentStep: 'ingredients' })
             });
 
-            if (!directResp.ok) {
-                throw new Error(`API request failed: ${directResp.status} ${directResp.statusText}`);
+            if (!netlifyResp.ok) {
+                const errorText = await netlifyResp.text();
+                console.error('Netlify function error:', netlifyResp.status, errorText);
+                throw new Error(`Function error ${netlifyResp.status}: ${errorText}`);
             }
 
-            data = await directResp.json();
+            const data = await netlifyResp.json();
 
-            if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-                throw new Error('Invalid response from AI API');
-            }
-
-            const aiResponse = data.candidates[0].content.parts[0].text;
-
-            // Try to parse JSON from the response
-            let recipe;
-            try {
-                // Extract JSON from the response (in case there's extra text)
-                const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    recipe = JSON.parse(jsonMatch[0]);
-                } else {
-                    throw new Error('No JSON found in response');
-                }
-            } catch (parseError) {
-                // Fallback: create a structured response from the text
-                recipe = {
-                    name: "AI-Generated Recipe",
-                    description: aiResponse.substring(0, 200) + "...",
-                    ingredients: ["See image for ingredients"],
-                    steps: aiResponse.split('\n').filter(line => line.trim().length > 0).slice(0, 5),
-                    cookingTime: "15-20 minutes",
-                    difficulty: "Medium",
-                    servings: "2-4 servings",
-                    tips: ["Follow the AI suggestions carefully"]
-                };
-            }
-
-            setRecipe(recipe);
+            // Netlify function returns the parsed analysis payload directly
+            setRecipe({
+                name: data.recipe?.name || 'AI Recipe',
+                description: data.recipe?.description,
+                ingredients: data.ingredients || data.recipe?.ingredients || [],
+                steps: data.recipe?.steps || [],
+                cookingTime: data.recipe?.cookingTime || '—',
+                difficulty: data.recipe?.difficulty || '—',
+                servings: data.recipe?.servings || '—',
+                tips: data.tips || data.recipe?.tips || []
+            });
             setIsProcessing(false);
 
         } catch (error) {

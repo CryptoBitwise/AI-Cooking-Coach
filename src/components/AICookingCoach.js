@@ -3,7 +3,7 @@ import { Camera, Upload, Mic, MicOff, ChefHat, Sparkles, Clock, CheckCircle, Vol
 
 const AICookingCoach = () => {
     console.log('AICookingCoach component rendering...');
-    
+
     const [currentStep, setCurrentStep] = useState('ingredients'); // ingredients, cooking, finished
     const [isProcessing, setIsProcessing] = useState(false);
     const [recipe, setRecipe] = useState(null);
@@ -160,9 +160,20 @@ const AICookingCoach = () => {
         }`;
             }
 
-            // Temporarily use mock data for testing
-            console.log('Using mock data for testing...');
-            const analysisData = await mockAIAnalysis(currentStep, imageData);
+            // Call Netlify function for real AI analysis
+            const netlifyResp = await fetch('/.netlify/functions/analyze-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ imageData, currentStep })
+            });
+
+            if (!netlifyResp.ok) {
+                const errorText = await netlifyResp.text();
+                console.error('Netlify function error:', netlifyResp.status, errorText);
+                throw new Error(`Function error ${netlifyResp.status}: ${errorText}`);
+            }
+
+            const analysisData = await netlifyResp.json();
 
             setAnalysisResult(analysisData);
 

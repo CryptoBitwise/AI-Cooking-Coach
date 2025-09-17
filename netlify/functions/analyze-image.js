@@ -39,7 +39,19 @@ exports.handler = async (event, context) => {
     }
 
     // Convert base64 to proper format for Gemini
-    const base64Data = imageData.split(',')[1];
+    let base64Data;
+    if (imageData.includes(',')) {
+      base64Data = imageData.split(',')[1];
+    } else {
+      base64Data = imageData; // Assume it's already base64 without prefix
+    }
+
+    if (!base64Data || base64Data.length === 0) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: 'Invalid image data format' })
+      };
+    }
 
     let prompt = '';
     if (currentStep === 'ingredients') {
@@ -100,11 +112,10 @@ Respond in JSON format:
     }
 
     // Call Google AI Studio API
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent", {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": apiKey
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
         contents: [{
@@ -130,7 +141,9 @@ Respond in JSON format:
     });
 
     if (!response.ok) {
-      throw new Error(`Google AI API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Gemini API error:', response.status, errorText);
+      throw new Error(`Google AI API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
@@ -159,7 +172,11 @@ Respond in JSON format:
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': '*'
       },
-      body: JSON.stringify({ error: 'Failed to analyze image' })
+      body: JSON.stringify({
+        error: 'Failed to analyze image',
+        details: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      })
     };
   }
 };
