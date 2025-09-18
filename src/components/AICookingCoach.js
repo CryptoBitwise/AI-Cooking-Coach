@@ -49,44 +49,100 @@ const AICookingCoach = () => {
     }, []);
 
     const capturePhoto = useCallback(() => {
-        if (videoRef.current && canvasRef.current) {
-            const canvas = canvasRef.current;
-            const video = videoRef.current;
-            
-            // Check if video is ready
-            if (video.videoWidth === 0 || video.videoHeight === 0) {
-                console.log('Video not ready, waiting...');
-                setTimeout(capturePhoto, 100);
-                return;
+        console.log('Capture photo clicked');
+        
+        if (!videoRef.current) {
+            console.error('Video ref not available');
+            alert('Camera not ready. Please try again.');
+            return;
+        }
+        
+        const video = videoRef.current;
+        console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
+        console.log('Video ready state:', video.readyState);
+        
+        // Check if video is ready
+        if (video.videoWidth === 0 || video.videoHeight === 0) {
+            console.log('Video not ready, waiting...');
+            setTimeout(() => capturePhoto(), 200);
+            return;
+        }
+        
+        // Try multiple capture methods for better mobile compatibility
+        const tryCapture = () => {
+            // Method 1: Canvas approach
+            if (canvasRef.current) {
+                try {
+                    const canvas = canvasRef.current;
+                    const context = canvas.getContext('2d');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    
+                    context.drawImage(video, 0, 0);
+                    console.log('Image drawn to canvas');
+                    
+                    canvas.toBlob((blob) => {
+                        if (blob) {
+                            console.log('Canvas capture successful');
+                            const reader = new FileReader();
+                            reader.onload = (e) => {
+                                setCapturedImage(e.target.result);
+                                analyzeImage(e.target.result);
+                                stopCamera();
+                            };
+                            reader.readAsDataURL(blob);
+                        } else {
+                            console.log('Canvas capture failed, trying alternative method');
+                            tryAlternativeCapture();
+                        }
+                    }, 'image/jpeg', 0.8);
+                    return;
+                } catch (error) {
+                    console.log('Canvas method failed:', error);
+                    tryAlternativeCapture();
+                }
+            } else {
+                tryAlternativeCapture();
             }
-            
-            const context = canvas.getContext('2d');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            
+        };
+        
+        const tryAlternativeCapture = () => {
+            // Method 2: Direct video capture using MediaRecorder
             try {
-                context.drawImage(video, 0, 0);
-                
-                canvas.toBlob((blob) => {
-                    if (blob) {
+                if (video.captureStream) {
+                    const stream = video.captureStream();
+                    const mediaRecorder = new MediaRecorder(stream);
+                    const chunks = [];
+                    
+                    mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            chunks.push(event.data);
+                        }
+                    };
+                    
+                    mediaRecorder.onstop = () => {
+                        const blob = new Blob(chunks, { type: 'image/jpeg' });
                         const reader = new FileReader();
                         reader.onload = (e) => {
                             setCapturedImage(e.target.result);
                             analyzeImage(e.target.result);
+                            stopCamera();
                         };
                         reader.readAsDataURL(blob);
-                    } else {
-                        console.error('Failed to create blob from canvas');
-                        alert('Failed to capture photo. Please try again.');
-                    }
-                }, 'image/jpeg', 0.8);
-                
-                stopCamera();
+                    };
+                    
+                    mediaRecorder.start();
+                    setTimeout(() => mediaRecorder.stop(), 100);
+                } else {
+                    throw new Error('captureStream not supported');
+                }
             } catch (error) {
-                console.error('Error capturing photo:', error);
-                alert('Error capturing photo. Please try again.');
+                console.error('Alternative capture failed:', error);
+                alert('Camera capture failed. Please try the file upload option instead.');
             }
-        }
+        };
+        
+        tryCapture();
     }, [analyzeImage, stopCamera]);
 
     // Voice functionality
