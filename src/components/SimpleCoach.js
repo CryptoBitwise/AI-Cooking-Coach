@@ -79,8 +79,10 @@ const SimpleCoach = () => {
                 : Promise.reject(new Error('Camera not supported'));
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
-                videoRef.current.setAttribute('playsinline', 'true');
-                videoRef.current.muted = true;
+                // Critical: wait for metadata before playing
+                videoRef.current.onloadedmetadata = () => {
+                    videoRef.current.play();
+                };
                 setIsCameraActive(true);
             }
         } catch (error) {
@@ -231,7 +233,8 @@ const SimpleCoach = () => {
                                 ref={videoRef}
                                 autoPlay
                                 playsInline
-                                style={{ width: '100%', maxWidth: '400px', margin: '0 auto', borderRadius: '8px' }}
+                                muted
+                                style={{ width: '100%', maxWidth: '400px', margin: '0 auto', borderRadius: '8px', objectFit: 'cover' }}
                             />
                             <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '16px' }}>
                                 <button

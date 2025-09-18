@@ -28,10 +28,20 @@ const AICookingCoach = () => {
     const startCamera = useCallback(async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'environment' } // Use back camera on mobile
+                video: { 
+                    facingMode: { ideal: 'environment' },
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
+                audio: false
             });
+            
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
+                // Critical: wait for metadata before playing
+                videoRef.current.onloadedmetadata = () => {
+                    videoRef.current.play();
+                };
                 setIsCameraActive(true);
             }
         } catch (error) {
@@ -454,7 +464,9 @@ const AICookingCoach = () => {
                                 ref={videoRef}
                                 autoPlay
                                 playsInline
+                                muted
                                 className="w-full max-w-md mx-auto rounded-lg shadow-lg"
+                                style={{ width: '100%', height: 'auto', objectFit: 'cover' }}
                             />
                             <div className="flex justify-center gap-4">
                                 <button
