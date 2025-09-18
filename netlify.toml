@@ -7,12 +7,7 @@
   CI = "false"
   GENERATE_SOURCEMAP = "false"
 
-# Simple SPA redirect
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-
+# SPA redirect (catch-all, must be last)
 [[redirects]]
   from = "/*"
   to = "/index.html"
