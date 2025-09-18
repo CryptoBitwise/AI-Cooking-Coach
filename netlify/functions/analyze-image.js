@@ -143,15 +143,30 @@ Respond in JSON format:
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Gemini API error:', response.status, errorText);
+      console.error('Response headers:', Object.fromEntries(response.headers.entries()));
       throw new Error(`Google AI API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
+    
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+      console.error('Invalid Gemini response structure:', JSON.stringify(data, null, 2));
+      throw new Error('Invalid response from Gemini API');
+    }
+    
     let responseText = data.candidates[0].content.parts[0].text;
 
     // Clean up response and parse JSON
     responseText = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    const analysisData = JSON.parse(responseText);
+    
+    let analysisData;
+    try {
+      analysisData = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      console.error('Response text:', responseText);
+      throw new Error(`Failed to parse AI response as JSON: ${parseError.message}`);
+    }
 
     return {
       statusCode: 200,
