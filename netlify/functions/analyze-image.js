@@ -30,7 +30,7 @@ exports.handler = async (event, context) => {
     }
 
     // Get API key from environment variables
-    const apiKey = process.env.GOOGLE_AI_API_KEY;
+    const apiKey = process.env.GOOGLE_AI_API_KEY || process.env.REACT_APP_GOOGLE_AI_API_KEY;
     if (!apiKey) {
       return {
         statusCode: 500,
