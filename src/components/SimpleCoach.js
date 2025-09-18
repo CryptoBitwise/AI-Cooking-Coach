@@ -101,20 +101,41 @@ const SimpleCoach = () => {
         if (videoRef.current && canvasRef.current) {
             const canvas = canvasRef.current;
             const video = videoRef.current;
+            
+            // Check if video is ready
+            if (video.videoWidth === 0 || video.videoHeight === 0) {
+                console.log('Video not ready, waiting...');
+                setTimeout(capturePhoto, 100);
+                return;
+            }
+            
             const context = canvas.getContext('2d');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            context.drawImage(video, 0, 0);
-            canvas.toBlob((blob) => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    setCapturedImage(e.target.result);
-                    // Real AI analysis
-                    analyzeImageWithAI(e.target.result);
-                };
-                reader.readAsDataURL(blob);
-            }, 'image/jpeg', 0.8);
-            stopCamera();
+            
+            try {
+                context.drawImage(video, 0, 0);
+                
+                canvas.toBlob((blob) => {
+                    if (blob) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            setCapturedImage(e.target.result);
+                            // Real AI analysis
+                            analyzeImageWithAI(e.target.result);
+                        };
+                        reader.readAsDataURL(blob);
+                    } else {
+                        console.error('Failed to create blob from canvas');
+                        alert('Failed to capture photo. Please try again.');
+                    }
+                }, 'image/jpeg', 0.8);
+                
+                stopCamera();
+            } catch (error) {
+                console.error('Error capturing photo:', error);
+                alert('Error capturing photo. Please try again.');
+            }
         }
     };
 
