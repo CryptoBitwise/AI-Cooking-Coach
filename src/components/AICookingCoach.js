@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Camera, Upload, Mic, MicOff, ChefHat, Sparkles, Clock, CheckCircle, Volume2, Star, Heart, ThumbsUp, Award, Share2, AlertCircle, Zap } from 'lucide-react';
+import Webcam from 'react-webcam';
 
 const AICookingCoach = () => {
     console.log('AICookingCoach component rendering...');
@@ -18,141 +19,44 @@ const AICookingCoach = () => {
     // const [successSteps, setSuccessSteps] = useState(new Set());
     const [showNutrition, setShowNutrition] = useState(false);
 
-    const videoRef = useRef(null);
-    const canvasRef = useRef(null);
+    const webcamRef = useRef(null);
     const fileInputRef = useRef(null);
     const recognitionRef = useRef(null);
     const [isCameraActive, setIsCameraActive] = useState(false);
 
-    // Camera functionality
-    const startCamera = useCallback(async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { 
-                    facingMode: { ideal: 'environment' },
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                },
-                audio: false
-            });
-            
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-                // Critical: wait for metadata before playing
-                videoRef.current.onloadedmetadata = () => {
-                    videoRef.current.play();
-                };
-                setIsCameraActive(true);
-            }
-        } catch (error) {
-            console.error('Error accessing camera:', error);
-            alert('Camera access denied. Please use file upload instead.');
-        }
+    // Camera functionality with react-webcam
+    const startCamera = useCallback(() => {
+        setIsCameraActive(true);
     }, []);
 
     const stopCamera = useCallback(() => {
-        if (videoRef.current && videoRef.current.srcObject) {
-            const tracks = videoRef.current.srcObject.getTracks();
-            tracks.forEach(track => track.stop());
-            setIsCameraActive(false);
-        }
+        setIsCameraActive(false);
     }, []);
 
     const capturePhoto = useCallback(() => {
         console.log('Capture photo clicked');
         
-        if (!videoRef.current) {
-            console.error('Video ref not available');
+        if (!webcamRef.current) {
+            console.error('Webcam ref not available');
             alert('Camera not ready. Please try again.');
             return;
         }
         
-        const video = videoRef.current;
-        console.log('Video dimensions:', video.videoWidth, 'x', video.videoHeight);
-        console.log('Video ready state:', video.readyState);
-        
-        // Check if video is ready
-        if (video.videoWidth === 0 || video.videoHeight === 0) {
-            console.log('Video not ready, waiting...');
-            setTimeout(() => capturePhoto(), 200);
-            return;
-        }
-        
-        // Try multiple capture methods for better mobile compatibility
-        const tryCapture = () => {
-            // Method 1: Canvas approach
-            if (canvasRef.current) {
-                try {
-                    const canvas = canvasRef.current;
-                    const context = canvas.getContext('2d');
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    
-                    context.drawImage(video, 0, 0);
-                    console.log('Image drawn to canvas');
-                    
-                    canvas.toBlob((blob) => {
-                        if (blob) {
-                            console.log('Canvas capture successful');
-                            const reader = new FileReader();
-                            reader.onload = (e) => {
-                                setCapturedImage(e.target.result);
-                                analyzeImage(e.target.result);
-                                stopCamera();
-                            };
-                            reader.readAsDataURL(blob);
-                        } else {
-                            console.log('Canvas capture failed, trying alternative method');
-                            tryAlternativeCapture();
-                        }
-                    }, 'image/jpeg', 0.8);
-                    return;
-                } catch (error) {
-                    console.log('Canvas method failed:', error);
-                    tryAlternativeCapture();
-                }
+        try {
+            const imageSrc = webcamRef.current.getScreenshot();
+            if (imageSrc) {
+                console.log('Photo captured successfully');
+                setCapturedImage(imageSrc);
+                analyzeImage(imageSrc);
+                stopCamera();
             } else {
-                tryAlternativeCapture();
+                console.error('Failed to capture photo');
+                alert('Failed to capture photo. Please try again.');
             }
-        };
-        
-        const tryAlternativeCapture = () => {
-            // Method 2: Direct video capture using MediaRecorder
-            try {
-                if (video.captureStream) {
-                    const stream = video.captureStream();
-                    const mediaRecorder = new MediaRecorder(stream);
-                    const chunks = [];
-                    
-                    mediaRecorder.ondataavailable = (event) => {
-                        if (event.data.size > 0) {
-                            chunks.push(event.data);
-                        }
-                    };
-                    
-                    mediaRecorder.onstop = () => {
-                        const blob = new Blob(chunks, { type: 'image/jpeg' });
-                        const reader = new FileReader();
-                        reader.onload = (e) => {
-                            setCapturedImage(e.target.result);
-                            analyzeImage(e.target.result);
-                            stopCamera();
-                        };
-                        reader.readAsDataURL(blob);
-                    };
-                    
-                    mediaRecorder.start();
-                    setTimeout(() => mediaRecorder.stop(), 100);
-                } else {
-                    throw new Error('captureStream not supported');
-                }
-            } catch (error) {
-                console.error('Alternative capture failed:', error);
-                alert('Camera capture failed. Please try the file upload option instead.');
-            }
-        };
-        
-        tryCapture();
+        } catch (error) {
+            console.error('Error capturing photo:', error);
+            alert('Error capturing photo: ' + error.message);
+        }
     }, [analyzeImage, stopCamera]);
 
     // Voice functionality
@@ -460,14 +364,23 @@ const AICookingCoach = () => {
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            <video
-                                ref={videoRef}
-                                autoPlay
-                                playsInline
-                                muted
-                                className="w-full max-w-md mx-auto rounded-lg shadow-lg"
-                                style={{ width: '100%', height: 'auto', objectFit: 'cover' }}
-                            />
+                            <div className="w-full max-w-md mx-auto rounded-lg shadow-lg overflow-hidden">
+                                <Webcam
+                                    ref={webcamRef}
+                                    audio={false}
+                                    screenshotFormat="image/jpeg"
+                                    videoConstraints={{
+                                        facingMode: "environment",
+                                        width: { ideal: 1280 },
+                                        height: { ideal: 720 }
+                                    }}
+                                    style={{
+                                        width: '100%',
+                                        height: 'auto',
+                                        objectFit: 'cover'
+                                    }}
+                                />
+                            </div>
                             <div className="flex justify-center gap-4">
                                 <button
                                     onClick={capturePhoto}
@@ -538,7 +451,6 @@ const AICookingCoach = () => {
                 </div>
             )}
 
-            <canvas ref={canvasRef} className="hidden" />
         </div>
     );
 

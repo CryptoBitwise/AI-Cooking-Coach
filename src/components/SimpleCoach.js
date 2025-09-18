@@ -1,12 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { Camera, Upload, ChefHat, Loader2 } from 'lucide-react';
+import Webcam from 'react-webcam';
 
 const SimpleCoach = () => {
     const [capturedImage, setCapturedImage] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [recipe, setRecipe] = useState(null);
-    const videoRef = useRef(null);
-    const canvasRef = useRef(null);
+    const webcamRef = useRef(null);
     const fileInputRef = useRef(null);
     const [isCameraActive, setIsCameraActive] = useState(false);
     const [error, setError] = useState(null);
@@ -63,81 +63,37 @@ const SimpleCoach = () => {
         }
     };
 
-    const startCamera = async () => {
-        try {
-            // iOS Safari reliability tweaks: prefer ideal constraint, ensure user gesture triggers
-            const constraints = {
-                audio: false,
-                video: {
-                    facingMode: { ideal: 'environment' },
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                }
-            };
-            const stream = await (navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
-                ? navigator.mediaDevices.getUserMedia(constraints)
-                : Promise.reject(new Error('Camera not supported'));
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-                // Critical: wait for metadata before playing
-                videoRef.current.onloadedmetadata = () => {
-                    videoRef.current.play();
-                };
-                setIsCameraActive(true);
-            }
-        } catch (error) {
-            console.error('Error accessing camera:', error);
-            alert('Unable to start camera. Try Upload Photo instead.');
-        }
+    const startCamera = () => {
+        setIsCameraActive(true);
     };
 
     const stopCamera = () => {
-        if (videoRef.current && videoRef.current.srcObject) {
-            const tracks = videoRef.current.srcObject.getTracks();
-            tracks.forEach(track => track.stop());
-            setIsCameraActive(false);
-        }
+        setIsCameraActive(false);
     };
 
     const capturePhoto = () => {
-        if (videoRef.current && canvasRef.current) {
-            const canvas = canvasRef.current;
-            const video = videoRef.current;
-            
-            // Check if video is ready
-            if (video.videoWidth === 0 || video.videoHeight === 0) {
-                console.log('Video not ready, waiting...');
-                setTimeout(capturePhoto, 100);
-                return;
-            }
-            
-            const context = canvas.getContext('2d');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            
-            try {
-                context.drawImage(video, 0, 0);
-                
-                canvas.toBlob((blob) => {
-                    if (blob) {
-                        const reader = new FileReader();
-                        reader.onload = (e) => {
-                            setCapturedImage(e.target.result);
-                            // Real AI analysis
-                            analyzeImageWithAI(e.target.result);
-                        };
-                        reader.readAsDataURL(blob);
-                    } else {
-                        console.error('Failed to create blob from canvas');
-                        alert('Failed to capture photo. Please try again.');
-                    }
-                }, 'image/jpeg', 0.8);
-                
+        console.log('Capture photo clicked');
+        
+        if (!webcamRef.current) {
+            console.error('Webcam ref not available');
+            alert('Camera not ready. Please try again.');
+            return;
+        }
+        
+        try {
+            const imageSrc = webcamRef.current.getScreenshot();
+            if (imageSrc) {
+                console.log('Photo captured successfully');
+                setCapturedImage(imageSrc);
+                analyzeImageWithAI(imageSrc);
                 stopCamera();
-            } catch (error) {
-                console.error('Error capturing photo:', error);
-                alert('Error capturing photo. Please try again.');
+            } else {
+                console.error('Failed to capture photo');
+                alert('Failed to capture photo. Please try again.');
             }
+        } catch (error) {
+            console.error('Error capturing photo:', error);
+            alert('Error capturing photo: ' + error.message);
         }
     };
 
@@ -229,13 +185,23 @@ const SimpleCoach = () => {
 
                     {isCameraActive && (
                         <div style={{ marginTop: '24px' }}>
-                            <video
-                                ref={videoRef}
-                                autoPlay
-                                playsInline
-                                muted
-                                style={{ width: '100%', maxWidth: '400px', margin: '0 auto', borderRadius: '8px', objectFit: 'cover' }}
-                            />
+                            <div style={{ width: '100%', maxWidth: '400px', margin: '0 auto', borderRadius: '8px', overflow: 'hidden' }}>
+                                <Webcam
+                                    ref={webcamRef}
+                                    audio={false}
+                                    screenshotFormat="image/jpeg"
+                                    videoConstraints={{
+                                        facingMode: "environment",
+                                        width: { ideal: 1280 },
+                                        height: { ideal: 720 }
+                                    }}
+                                    style={{
+                                        width: '100%',
+                                        height: 'auto',
+                                        objectFit: 'cover'
+                                    }}
+                                />
+                            </div>
                             <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '16px' }}>
                                 <button
                                     onClick={capturePhoto}
@@ -406,7 +372,6 @@ const SimpleCoach = () => {
                     Built for Google AI Studio Multimodal Challenge
                 </div>
             </div>
-            <canvas ref={canvasRef} style={{ display: 'none' }} />
         </div>
     );
 };
