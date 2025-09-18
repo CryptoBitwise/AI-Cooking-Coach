@@ -155,9 +155,11 @@ Respond in JSON format:
     }
     
     let responseText = data.candidates[0].content.parts[0].text;
+    console.log('Raw Gemini response:', responseText);
 
     // Clean up response and parse JSON
     responseText = responseText.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    console.log('Cleaned response:', responseText);
     
     let analysisData;
     try {
@@ -165,6 +167,7 @@ Respond in JSON format:
     } catch (parseError) {
       console.error('JSON parse error:', parseError);
       console.error('Response text:', responseText);
+      console.error('First 100 chars:', responseText.substring(0, 100));
       throw new Error(`Failed to parse AI response as JSON: ${parseError.message}`);
     }
 
